@@ -89,7 +89,6 @@
       <path value="$PROJECT_DIR$/vendor/nette/utils" />
       <path value="$PROJECT_DIR$/vendor/spatie/ignition" />
       <path value="$PROJECT_DIR$/vendor/spatie/flare-client-php" />
-      <path value="$PROJECT_DIR$/vendor/webmozart/assert" />
       <path value="$PROJECT_DIR$/vendor/spatie/laravel-package-tools" />
       <path value="$PROJECT_DIR$/vendor/spatie/robots-txt" />
       <path value="$PROJECT_DIR$/vendor/guzzlehttp/psr7" />
