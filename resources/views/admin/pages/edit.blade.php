@@ -372,11 +372,10 @@
                                             Gelişmiş SEO Ayarları
                                         </button>
                                     </h2>
-                                    <div id="collapseSeo" class="accordion-collapse collapse"
-                                         data-bs-parent="#seoAccordion">
+                                    <div id="collapseSeo" class="accordion-collapse collapse" data-bs-parent="#seoAccordion">
                                         <div class="accordion-body">
+                                            {{-- Temel SEO --}}
                                             <div class="row">
-                                                {{-- Temel SEO Alanları (Dinamik) --}}
                                                 <div class="col-12 col-md-6">
                                                     {{-- SEO Başlık --}}
                                                     <div class="mb-3">
@@ -400,8 +399,7 @@
                                                     </div>
                                                     {{-- Anahtar Kelimeler --}}
                                                     <div class="mb-3">
-                                                        <label class="form-label">Anahtar Kelimeler (Virgülle
-                                                            ayırın)</label>
+                                                        <label class="form-label">Anahtar Kelimeler</label>
                                                         @foreach($activeLanguages as $code => $lang)
                                                             <input type="text" name="keywords[{{ $code }}]"
                                                                    class="form-control {{ !$loop->first ? 'mt-2' : '' }}"
@@ -409,85 +407,201 @@
                                                                    value="{{ old('keywords.'.$code, $page->getTranslation('keywords', $code)) }}">
                                                         @endforeach
                                                     </div>
+                                                    {{-- Odak Anahtar Kelime --}}
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Odak Anahtar Kelime</label>
+                                                        @foreach($activeLanguages as $code => $lang)
+                                                            <input type="text" name="focus_keyword[{{ $code }}]"
+                                                                   class="form-control {{ !$loop->first ? 'mt-2' : '' }}"
+                                                                   placeholder="{{ $lang['native'] }} Odak Anahtar Kelime"
+                                                                   value="{{ old('focus_keyword.'.$code, $page->getTranslation('focus_keyword', $code)) }}">
+                                                        @endforeach
+                                                        <small class="text-muted">SEO analizinde kullanılacak ana anahtar kelime</small>
+                                                    </div>
                                                 </div>
-
-                                                {{-- Gelişmiş SEO Alanları (Tek Dilli - Değişiklik Yok) --}}
                                                 <div class="col-12 col-md-6">
                                                     <div class="mb-3">
-                                                        <label for="index_status" class="form-label">Arama Motoru
-                                                            Görünürlüğü</label>
-                                                        <select name="index_status" id="index_status"
-                                                                class="form-select">
-                                                            <option
-                                                                    value="index" @selected(old('index_status', $page->index_status) == 'index')>
-                                                                Sayfa indexlensin
-                                                            </option>
-                                                            <option
-                                                                    value="noindex" @selected(old('index_status', $page->index_status) == 'noindex')>
-                                                                Sayfa indexlenmesin
-                                                            </option>
+                                                        <label for="index_status" class="form-label">Arama Motoru Görünürlüğü</label>
+                                                        <select name="index_status" id="index_status" class="form-select">
+                                                            <option value="index" @selected(old('index_status', $page->index_status) == 'index')>Sayfa indexlensin</option>
+                                                            <option value="noindex" @selected(old('index_status', $page->index_status) == 'noindex')>Sayfa indexlenmesin</option>
                                                         </select>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label for="follow_status" class="form-label">Link
-                                                            Takibi</label>
-                                                        <select name="follow_status" id="follow_status"
-                                                                class="form-select">
-                                                            <option
-                                                                    value="follow" @selected(old('follow_status', $page->follow_status) == 'follow')>
-                                                                Sayfadaki linkler takip edilsin
-                                                            </option>
-                                                            <option
-                                                                    value="nofollow" @selected(old('follow_status', $page->follow_status) == 'nofollow')>
-                                                                Sayfadaki linkler takip edilmesin
-                                                            </option>
+                                                        <label for="follow_status" class="form-label">Link Takibi</label>
+                                                        <select name="follow_status" id="follow_status" class="form-select">
+                                                            <option value="follow" @selected(old('follow_status', $page->follow_status) == 'follow')>Sayfadaki linkler takip edilsin</option>
+                                                            <option value="nofollow" @selected(old('follow_status', $page->follow_status) == 'nofollow')>Sayfadaki linkler takip edilmesin</option>
                                                         </select>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label for="canonical_url" class="form-label">Canonical
-                                                            URL</label>
-                                                        <input type="url" name="canonical_url" id="canonical_url"
-                                                               class="form-control" placeholder="https://..."
-                                                               value="{{ old('canonical_url', $page->canonical_url) }}">
-                                                        <small class="text-muted">Bu sayfanın kopya olduğu orijinal
-                                                            sayfanın linki. Genellikle boş bırakılır.</small>
+                                                        <label for="canonical_url" class="form-label">Canonical URL</label>
+                                                        <input type="url" name="canonical_url" id="canonical_url" class="form-control" placeholder="https://..." value="{{ old('canonical_url', $page->canonical_url) }}">
+                                                        <small class="text-muted">Bu sayfanın kopya olduğu orijinal sayfanın linki.</small>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <hr>
-                                            <h6 class="mt-4 px-3">Sosyal Medya Paylaşım (Open Graph) Ayarları</h6>
-                                            <div class="row p-3">
+                                            {{-- Meta Robots --}}
+                                            <hr><h6 class="mt-4">Meta Robots Ayarları</h6>
+                                            <div class="row">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="meta_noindex" id="meta_noindex" value="1" @checked(old('meta_noindex', $page->meta_noindex))>
+                                                            <label class="form-check-label" for="meta_noindex">Noindex</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="meta_nofollow" id="meta_nofollow" value="1" @checked(old('meta_nofollow', $page->meta_nofollow))>
+                                                            <label class="form-check-label" for="meta_nofollow">Nofollow</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="meta_noarchive" id="meta_noarchive" value="1" @checked(old('meta_noarchive', $page->meta_noarchive))>
+                                                            <label class="form-check-label" for="meta_noarchive">Noarchive</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="meta_nosnippet" id="meta_nosnippet" value="1" @checked(old('meta_nosnippet', $page->meta_nosnippet))>
+                                                            <label class="form-check-label" for="meta_nosnippet">Nosnippet</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="meta_max_snippet" class="form-label">Max Snippet</label>
+                                                        <input type="number" name="meta_max_snippet" id="meta_max_snippet" class="form-control" min="-1" max="320" value="{{ old('meta_max_snippet', $page->meta_max_snippet) }}">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="meta_max_image_preview" class="form-label">Max Image Preview</label>
+                                                        <select name="meta_max_image_preview" id="meta_max_image_preview" class="form-select">
+                                                            <option value="">Varsayılan</option>
+                                                            <option value="none" @selected(old('meta_max_image_preview', $page->meta_max_image_preview) == 'none')>Resim önizleme yok</option>
+                                                            <option value="standard" @selected(old('meta_max_image_preview', $page->meta_max_image_preview) == 'standard')>Standart</option>
+                                                            <option value="large" @selected(old('meta_max_image_preview', $page->meta_max_image_preview) == 'large')>Büyük</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Open Graph --}}
+                                            <hr><h6 class="mt-4">Open Graph Ayarları</h6>
+                                            <div class="row">
                                                 <div class="col-12">
-                                                    {{-- OG Başlık (Dinamik) --}}
                                                     <div class="mb-3">
                                                         <label class="form-label">OG Başlık</label>
                                                         @foreach($activeLanguages as $code => $lang)
-                                                            <input type="text" name="og_title[{{ $code }}]"
-                                                                   class="form-control {{ !$loop->first ? 'mt-2' : '' }}"
-                                                                   placeholder="Facebook, LinkedIn'de görünecek {{ $lang['native'] }} başlık"
+                                                            <input type="text" name="og_title[{{ $code }}]" class="form-control {{ !$loop->first ? 'mt-2' : '' }}"
+                                                                   placeholder="Facebook'ta görünecek {{ $lang['native'] }} başlık"
                                                                    value="{{ old('og_title.'.$code, $page->getTranslation('og_title', $code)) }}">
                                                         @endforeach
                                                     </div>
-                                                    {{-- OG Açıklama (Dinamik) --}}
                                                     <div class="mb-3">
                                                         <label class="form-label">OG Açıklama</label>
                                                         @foreach($activeLanguages as $code => $lang)
-                                                            <textarea name="og_description[{{ $code }}]"
-                                                                      class="form-control {{ !$loop->first ? 'mt-2' : '' }}"
-                                                                      rows="2"
+                                                            <textarea name="og_description[{{ $code }}]" class="form-control {{ !$loop->first ? 'mt-2' : '' }}" rows="2"
                                                                       placeholder="{{ $lang['native'] }} OG Açıklaması">{{ old('og_description.'.$code, $page->getTranslation('og_description', $code)) }}</textarea>
                                                         @endforeach
                                                     </div>
-                                                    {{-- OG Resim (Tek Dilli - Değişiklik Yok) --}}
                                                     <div class="mb-3">
                                                         <label for="og_image" class="form-label">OG Resim</label>
-                                                        <input type="text" name="og_image" id="og_image"
-                                                               class="form-control"
-                                                               placeholder="Paylaşımda görünecek resmin tam URL'si"
-                                                               value="{{ old('og_image', $page->og_image) }}">
-                                                        <small class="text-muted">Bu alanı boş bırakırsanız, sayfanın
-                                                            öne çıkan görseli kullanılır.</small>
+                                                        <input type="file" name="og_image" id="og_image" class="form-control" accept="image/*">
+                                                        @if($page->og_image)
+                                                            <small class="text-success d-block mt-2">Mevcut: {{ basename($page->og_image) }}</small>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Twitter Card --}}
+                                            <hr><h6 class="mt-4">Twitter Card Ayarları</h6>
+                                            <div class="row">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="twitter_card_type" class="form-label">Twitter Card Tipi</label>
+                                                        <select name="twitter_card_type" id="twitter_card_type" class="form-select">
+                                                            <option value="">Varsayılan</option>
+                                                            <option value="summary" @selected(old('twitter_card_type', $page->twitter_card_type) == 'summary')>Summary</option>
+                                                            <option value="summary_large_image" @selected(old('twitter_card_type', $page->twitter_card_type) == 'summary_large_image')>Summary Large Image</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Twitter Başlık</label>
+                                                        @foreach($activeLanguages as $code => $lang)
+                                                            <input type="text" name="twitter_title[{{ $code }}]" class="form-control {{ !$loop->first ? 'mt-2' : '' }}"
+                                                                   placeholder="Twitter'da görünecek {{ $lang['native'] }} başlık"
+                                                                   value="{{ old('twitter_title.'.$code, $page->getTranslation('twitter_title', $code)) }}">
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Twitter Açıklama</label>
+                                                        @foreach($activeLanguages as $code => $lang)
+                                                            <textarea name="twitter_description[{{ $code }}]" class="form-control {{ !$loop->first ? 'mt-2' : '' }}" rows="2"
+                                                                      placeholder="{{ $lang['native'] }} Twitter Açıklaması">{{ old('twitter_description.'.$code, $page->getTranslation('twitter_description', $code)) }}</textarea>
+                                                        @endforeach
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="twitter_image" class="form-label">Twitter Resim</label>
+                                                        <input type="file" name="twitter_image" id="twitter_image" class="form-control" accept="image/*">
+                                                        @if($page->twitter_image)
+                                                            <small class="text-success d-block mt-2">Mevcut: {{ basename($page->twitter_image) }}</small>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Schema.org --}}
+                                            <hr><h6 class="mt-4">Schema.org Ayarları</h6>
+                                            <div class="row">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="schema_article_type" class="form-label">Schema Tipi</label>
+                                                        <select name="schema_article_type" id="schema_article_type" class="form-select">
+                                                            <option value="">Varsayılan</option>
+                                                            <option value="Article" @selected(old('schema_article_type', $page->schema_article_type) == 'Article')>Article</option>
+                                                            <option value="WebPage" @selected(old('schema_article_type', $page->schema_article_type) == 'WebPage')>WebPage</option>
+                                                            <option value="Product" @selected(old('schema_article_type', $page->schema_article_type) == 'Product')>Product</option>
+                                                            <option value="Service" @selected(old('schema_article_type', $page->schema_article_type) == 'Service')>Service</option>
+                                                            <option value="FAQPage" @selected(old('schema_article_type', $page->schema_article_type) == 'FAQPage')>FAQ Page</option>
+                                                            <option value="LocalBusiness" @selected(old('schema_article_type', $page->schema_article_type) == 'LocalBusiness')>Local Business</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    {{-- Schema specific fields buraya dinamik olarak yüklenecek --}}
+                                                </div>
+                                            </div>
+
+                                            {{-- Yönlendirme --}}
+                                            <hr><h6 class="mt-4">Yönlendirme Ayarları</h6>
+                                            <div class="row">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="redirect_enabled" id="redirect_enabled" value="1" @checked(old('redirect_enabled', $page->redirect_enabled))>
+                                                            <label class="form-check-label" for="redirect_enabled">Yönlendirmeyi Aktif Et</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="redirect_url" class="form-label">Yönlendirme URL'i</label>
+                                                        <input type="url" name="redirect_url" id="redirect_url" class="form-control" value="{{ old('redirect_url', $page->redirect_url) }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="redirect_type" class="form-label">Yönlendirme Tipi</label>
+                                                        <select name="redirect_type" id="redirect_type" class="form-select">
+                                                            <option value="301" @selected(old('redirect_type', $page->redirect_type) == 301)>301 (Kalıcı)</option>
+                                                            <option value="302" @selected(old('redirect_type', $page->redirect_type) == 302)>302 (Geçici)</option>
+                                                            <option value="307" @selected(old('redirect_type', $page->redirect_type) == 307)>307 (Geçici)</option>
+                                                            <option value="308" @selected(old('redirect_type', $page->redirect_type) == 308)>308 (Kalıcı)</option>
+                                                        </select>
                                                     </div>
                                                 </div>
                                             </div>
