@@ -10,8 +10,6 @@ class Page extends Model
 {
     use HasFactory, HasTranslations;
 
-    // $fillable dizisi, update() metoduyla hangi alanların
-    // güncellenebileceğini belirler.
     protected $fillable = [
         'title',
         'slug',
@@ -70,7 +68,7 @@ class Page extends Model
         'seo_last_analyzed_at',
     ];
 
-    // Hangi alanların çok dilli olduğunu belirtir.
+    // Çok dilli alanlar
     public $translatable = [
         'title',
         'seo_title',
@@ -93,10 +91,31 @@ class Page extends Model
         'seo_analysis_results' => 'array',
         'schema_faq_items' => 'array',
         'seo_last_analyzed_at' => 'datetime',
+        'redirect_enabled' => 'boolean',
+        'meta_noindex' => 'boolean',
+        'meta_nofollow' => 'boolean',
+        'meta_noarchive' => 'boolean',
+        'meta_nosnippet' => 'boolean',
     ];
 
     public function sections()
     {
         return $this->hasMany(PageSection::class)->orderBy('order');
+    }
+
+    /**
+     * Scope: Yayında olan sayfalar
+     */
+    public function scopePublished($query)
+    {
+        return $query->where('status', 'published');
+    }
+
+    /**
+     * Scope: Taslak sayfalar
+     */
+    public function scopeDraft($query)
+    {
+        return $query->where('status', 'draft');
     }
 }
