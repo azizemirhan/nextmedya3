@@ -32,7 +32,18 @@ class PageController extends Controller
         $page = new Page();
         // YENİ EKLENEN KISIM: Şablonları config dosyasından alıp view'e gönderiyoruz.
         $templates = config('page_templates', []);
-        return view('admin.pages.create', compact('page', 'templates'));
+
+        // Aktif dilleri al
+        $activeLanguageCodes = setting('active_languages', ['tr', 'en']);
+        if (!is_array($activeLanguageCodes)) {
+            $activeLanguageCodes = ['tr', 'en'];
+        }
+        $allLanguages = config('languages.supported', []);
+        $activeLanguages = collect($allLanguages)
+            ->filter(fn($lang, $code) => in_array($code, $activeLanguageCodes))
+            ->sortBy(fn($lang, $code) => array_search($code, $activeLanguageCodes));
+
+        return view('admin.pages.create', compact('page', 'templates', 'activeLanguages'));
     }
 
 
