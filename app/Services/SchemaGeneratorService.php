@@ -3,29 +3,31 @@
 namespace App\Services;
 
 use App\Models\Post;
+use App\Models\Page;
 use Illuminate\Support\Arr;
 
 class SchemaGeneratorService
 {
     /**
-     * Post için dinamik schema oluşturur
+     * Post veya Page için dinamik schema oluşturur
      *
-     * @param Post $post
+     * @param Post|Page $model
      * @param string $locale
      * @return array|null
      */
-    public function generate(Post $post, string $locale = 'tr'): ?array
+    public function generate($model, string $locale = 'tr'): ?array
     {
-        $schemaType = $post->schema_article_type ?? 'BlogPosting';
+        $schemaType = $model->schema_article_type ?? ($model instanceof Post ? 'BlogPosting' : 'WebPage');
 
         return match($schemaType) {
-            'Article', 'BlogPosting', 'NewsArticle' => $this->generateArticleSchema($post, $locale, $schemaType),
-            'Product' => $this->generateProductSchema($post, $locale),
-            'Service' => $this->generateServiceSchema($post, $locale),
-            'FAQPage' => $this->generateFAQSchema($post, $locale),
-            'HowTo' => $this->generateHowToSchema($post, $locale),
-            'LocalBusiness' => $this->generateLocalBusinessSchema($post, $locale),
-            'Person' => $this->generatePersonSchema($post, $locale),
+            'Article', 'BlogPosting', 'NewsArticle' => $this->generateArticleSchema($model, $locale, $schemaType),
+            'WebPage' => $this->generateWebPageSchema($model, $locale),
+            'Product' => $this->generateProductSchema($model, $locale),
+            'Service' => $this->generateServiceSchema($model, $locale),
+            'FAQPage' => $this->generateFAQSchema($model, $locale),
+            'HowTo' => $this->generateHowToSchema($model, $locale),
+            'LocalBusiness' => $this->generateLocalBusinessSchema($model, $locale),
+            'Person' => $this->generatePersonSchema($model, $locale),
             default => null
         };
     }
@@ -33,18 +35,18 @@ class SchemaGeneratorService
     /**
      * Article/BlogPosting/NewsArticle Schema
      */
-    private function generateArticleSchema(Post $post, string $locale, string $type): array
+    private function generateArticleSchema($model, string $locale, string $type): array
     {
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => $type,
-            'headline' => $post->getTranslation('title', $locale),
-            'description' => $post->getTranslation('excerpt', $locale) ?: $post->getTranslation('meta_description', $locale),
-            'datePublished' => $post->published_at?->toIso8601String(),
-            'dateModified' => $post->updated_at->toIso8601String(),
+            'headline' => $model->getTranslation('title', $locale),
+            'description' => $model->getTranslation('excerpt', $locale) ?: $model->getTranslation('meta_description', $locale),
+            'datePublished' => $model->published_at?->toIso8601String(),
+            'dateModified' => $model->updated_at->toIso8601String(),
             'author' => [
                 '@type' => 'Person',
-                'name' => $post->author->name ?? 'Unknown',
+                'name' => $model->author->name ?? 'Unknown',
                 'url' => 'https://www.linkedin.com/in/aziz-emirhan-%C3%B6zdemir-91b694265/'
             ],
             'publisher' => [
@@ -58,32 +60,64 @@ class SchemaGeneratorService
         ];
 
         // Öne çıkan görsel
-        if ($post->featured_image) {
+        if ($model->featured_image) {
             $schema['image'] = [
                 '@type' => 'ImageObject',
-                'url' => asset($post->featured_image),
+                'url' => asset($model->featured_image),
                 'width' => 1200,
                 'height' => 630
             ];
         }
 
-        // Makale içeriği (ilk 500 karakter)
-        $content = strip_tags($post->getTranslation('content', $locale));
-        $schema['articleBody'] = mb_substr($content, 0, 500) . '...';
+        // Makale içeriği (ilk 500 karakter) - sadece Post için
+        if (isset($model->content)) {
+            $content = strip_tags($model->getTranslation('content', $locale));
+            $schema['articleBody'] = mb_substr($content, 0, 500) . '...';
+            // Kelime sayısı
+            $schema['wordCount'] = str_word_count($content);
+        }
 
-        // Kategori
-        if ($post->category) {
-            $schema['articleSection'] = $post->category->getTranslation('name', $locale);
+        // Kategori - sadece Post için
+        if (isset($model->category) && $model->category) {
+            $schema['articleSection'] = $model->category->getTranslation('name', $locale);
         }
 
         // Anahtar kelimeler
-        $focusKeyword = $post->getTranslation('focus_keyword', $locale);
+        $focusKeyword = $model->getTranslation('focus_keyword', $locale);
         if ($focusKeyword) {
             $schema['keywords'] = $focusKeyword;
         }
 
-        // Kelime sayısı
-        $schema['wordCount'] = str_word_count($content);
+        return $schema;
+    }
+
+    /**
+     * WebPage Schema (Pages için)
+     */
+    private function generateWebPageSchema($model, string $locale): array
+    {
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebPage',
+            'name' => $model->getTranslation('title', $locale),
+            'description' => $model->getTranslation('meta_description', $locale),
+            'url' => route('frontend.page.show', $model->slug),
+            'dateModified' => $model->updated_at->toIso8601String(),
+            'publisher' => [
+                '@type' => 'Organization',
+                'name' => config('app.name'),
+                'logo' => [
+                    '@type' => 'ImageObject',
+                    'url' => asset('images/logo.png')
+                ]
+            ]
+        ];
+
+        // Anahtar kelimeler
+        $focusKeyword = $model->getTranslation('focus_keyword', $locale);
+        if ($focusKeyword) {
+            $schema['keywords'] = $focusKeyword;
+        }
 
         return $schema;
     }
@@ -91,37 +125,46 @@ class SchemaGeneratorService
     /**
      * Product Schema
      */
-    private function generateProductSchema(Post $post, string $locale): array
+    private function generateProductSchema($model, string $locale): array
     {
+        $description = isset($model->excerpt)
+            ? $model->getTranslation('excerpt', $locale)
+            : $model->getTranslation('meta_description', $locale);
+
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Product',
-            'name' => $post->getTranslation('title', $locale),
-            'description' => $post->getTranslation('excerpt', $locale),
+            'name' => $model->getTranslation('title', $locale),
+            'description' => $description,
         ];
 
         // Görsel
-        if ($post->featured_image) {
-            $schema['image'] = asset($post->featured_image);
+        if (isset($model->featured_image) && $model->featured_image) {
+            $schema['image'] = asset($model->featured_image);
         }
 
+        // URL
+        $url = $model instanceof Post
+            ? route('blog.show', $model->slug)
+            : route('frontend.page.show', $model->slug);
+
         // Fiyat bilgisi
-        if ($post->schema_product_price) {
+        if ($model->schema_product_price) {
             $schema['offers'] = [
                 '@type' => 'Offer',
-                'price' => $post->schema_product_price,
-                'priceCurrency' => $post->schema_product_currency ?? 'TRY',
-                'availability' => 'https://schema.org/' . ($post->schema_product_availability ?? 'InStock'),
-                'url' => route('blog.show', $post->slug)
+                'price' => $model->schema_product_price,
+                'priceCurrency' => $model->schema_product_currency ?? 'TRY',
+                'availability' => 'https://schema.org/' . ($model->schema_product_availability ?? 'InStock'),
+                'url' => $url
             ];
         }
 
         // Değerlendirme
-        if ($post->schema_product_rating) {
+        if ($model->schema_product_rating) {
             $schema['aggregateRating'] = [
                 '@type' => 'AggregateRating',
-                'ratingValue' => $post->schema_product_rating,
-                'reviewCount' => $post->schema_product_review_count ?? 0,
+                'ratingValue' => $model->schema_product_rating,
+                'reviewCount' => $model->schema_product_review_count ?? 0,
                 'bestRating' => 5,
                 'worstRating' => 1
             ];
@@ -133,21 +176,25 @@ class SchemaGeneratorService
     /**
      * Service Schema
      */
-    private function generateServiceSchema(Post $post, string $locale): array
+    private function generateServiceSchema($model, string $locale): array
     {
+        $description = isset($model->excerpt)
+            ? $model->getTranslation('excerpt', $locale)
+            : $model->getTranslation('meta_description', $locale);
+
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Service',
-            'name' => $post->getTranslation('title', $locale),
-            'description' => $post->getTranslation('excerpt', $locale),
+            'name' => $model->getTranslation('title', $locale),
+            'description' => $description,
             'provider' => [
                 '@type' => 'Organization',
-                'name' => $post->getTranslation('schema_service_provider', $locale) ?? config('app.name')
+                'name' => $model->getTranslation('schema_service_provider', $locale) ?? config('app.name')
             ]
         ];
 
         // Hizmet alanı
-        $serviceArea = $post->getTranslation('schema_service_area', $locale);
+        $serviceArea = $model->getTranslation('schema_service_area', $locale);
         if ($serviceArea) {
             $schema['areaServed'] = [
                 '@type' => 'Place',
@@ -156,8 +203,8 @@ class SchemaGeneratorService
         }
 
         // Görsel
-        if ($post->featured_image) {
-            $schema['image'] = asset($post->featured_image);
+        if (isset($model->featured_image) && $model->featured_image) {
+            $schema['image'] = asset($model->featured_image);
         }
 
         return $schema;
@@ -166,7 +213,7 @@ class SchemaGeneratorService
     /**
      * FAQPage Schema
      */
-    private function generateFAQSchema(Post $post, string $locale): array
+    private function generateFAQSchema($model, string $locale): array
     {
         $schema = [
             '@context' => 'https://schema.org',
@@ -175,7 +222,7 @@ class SchemaGeneratorService
         ];
 
         // FAQ items (JSON array olarak saklanıyor)
-        $faqItems = $post->schema_faq_items;
+        $faqItems = $model->schema_faq_items;
 
         if (is_string($faqItems)) {
             $faqItems = json_decode($faqItems, true);
@@ -202,9 +249,9 @@ class SchemaGeneratorService
     /**
      * HowTo Schema
      */
-    private function generateHowToSchema(Post $post, string $locale): array
+    private function generateHowToSchema($model, string $locale): array
     {
-        $content = $post->getTranslation('content', $locale);
+        $content = isset($model->content) ? $model->getTranslation('content', $locale) : '';
 
         // İçerikten adımları çıkarmaya çalış (numbered list)
         preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $content, $matches);
@@ -219,11 +266,15 @@ class SchemaGeneratorService
             ];
         }
 
+        $description = isset($model->excerpt)
+            ? $model->getTranslation('excerpt', $locale)
+            : $model->getTranslation('meta_description', $locale);
+
         return [
             '@context' => 'https://schema.org',
             '@type' => 'HowTo',
-            'name' => $post->getTranslation('title', $locale),
-            'description' => $post->getTranslation('excerpt', $locale),
+            'name' => $model->getTranslation('title', $locale),
+            'description' => $description,
             'step' => $steps,
             'totalTime' => 'PT10M' // Default 10 dakika (özelleştirilebilir)
         ];
@@ -232,35 +283,51 @@ class SchemaGeneratorService
     /**
      * LocalBusiness Schema
      */
-    private function generateLocalBusinessSchema(Post $post, string $locale): array
+    private function generateLocalBusinessSchema($model, string $locale): array
     {
+        $description = isset($model->excerpt)
+            ? $model->getTranslation('excerpt', $locale)
+            : $model->getTranslation('meta_description', $locale);
+
+        $url = $model instanceof Post
+            ? route('blog.show', $model->slug)
+            : route('frontend.page.show', $model->slug);
+
         return [
             '@context' => 'https://schema.org',
             '@type' => 'LocalBusiness',
-            'name' => $post->getTranslation('title', $locale),
-            'description' => $post->getTranslation('excerpt', $locale),
-            'image' => $post->featured_image ? asset($post->featured_image) : null,
+            'name' => $model->getTranslation('title', $locale),
+            'description' => $description,
+            'image' => (isset($model->featured_image) && $model->featured_image) ? asset($model->featured_image) : null,
             'address' => [
                 '@type' => 'PostalAddress',
-                'addressLocality' => $post->getTranslation('schema_service_area', $locale) ?? 'İstanbul',
+                'addressLocality' => $model->getTranslation('schema_service_area', $locale) ?? 'İstanbul',
                 'addressCountry' => 'TR'
             ],
-            'url' => route('blog.show', $post->slug)
+            'url' => $url
         ];
     }
 
     /**
      * Person Schema
      */
-    private function generatePersonSchema(Post $post, string $locale): array
+    private function generatePersonSchema($model, string $locale): array
     {
+        $description = isset($model->excerpt)
+            ? $model->getTranslation('excerpt', $locale)
+            : $model->getTranslation('meta_description', $locale);
+
+        $url = $model instanceof Post
+            ? route('blog.show', $model->slug)
+            : route('frontend.page.show', $model->slug);
+
         return [
             '@context' => 'https://schema.org',
             '@type' => 'Person',
-            'name' => $post->getTranslation('title', $locale),
-            'description' => $post->getTranslation('excerpt', $locale),
-            'image' => $post->featured_image ? asset($post->featured_image) : null,
-            'url' => route('blog.show', $post->slug)
+            'name' => $model->getTranslation('title', $locale),
+            'description' => $description,
+            'image' => (isset($model->featured_image) && $model->featured_image) ? asset($model->featured_image) : null,
+            'url' => $url
         ];
     }
 

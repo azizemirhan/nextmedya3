@@ -3,20 +3,21 @@
 namespace App\Services;
 
 use App\Models\Post;
+use App\Models\Page;
 use Illuminate\Support\Str;
 
 class SeoAnalysisService
 {
     /**
-     * Bir yazının SEO kalitesini analiz eder
+     * Bir yazının veya sayfanın SEO kalitesini analiz eder
      *
-     * @param Post $post
+     * @param Post|Page $model
      * @param string $locale
      * @return array
      */
-    public function analyze(Post $post, string $locale = 'tr'): array
+    public function analyze($model, string $locale = 'tr'): array
     {
-        $focusKeyword = $post->getTranslation('focus_keyword', $locale);
+        $focusKeyword = $model->getTranslation('focus_keyword', $locale);
 
         if (empty($focusKeyword)) {
             return [
@@ -31,7 +32,7 @@ class SeoAnalysisService
         $maxScore = 100;
 
         // 1. Odak kelime SEO başlığında mı?
-        $seoTitle = $post->getTranslation('seo_title', $locale) ?: $post->getTranslation('title', $locale);
+        $seoTitle = $model->getTranslation('seo_title', $locale) ?: $model->getTranslation('title', $locale);
         $checks['focus_in_title'] = [
             'label' => 'Odak kelime SEO başlığında',
             'status' => $this->containsKeyword($seoTitle, $focusKeyword),
@@ -39,7 +40,7 @@ class SeoAnalysisService
         ];
 
         // 2. Odak kelime Meta açıklamada mı?
-        $metaDescription = $post->getTranslation('meta_description', $locale);
+        $metaDescription = $model->getTranslation('meta_description', $locale);
         $checks['focus_in_meta'] = [
             'label' => 'Odak kelime Meta açıklamada',
             'status' => $this->containsKeyword($metaDescription, $focusKeyword),
@@ -49,35 +50,40 @@ class SeoAnalysisService
         // 3. Odak kelime URL'de mi?
         $checks['focus_in_url'] = [
             'label' => 'Odak kelime URL\'de',
-            'status' => $this->containsKeyword($post->slug, $focusKeyword),
+            'status' => $this->containsKeyword($model->slug, $focusKeyword),
             'weight' => 10
         ];
 
-        // 4. Odak kelime içeriğin ilk %10'unda mı?
-        $content = strip_tags($post->getTranslation('content', $locale));
-        $contentLength = mb_strlen($content);
-        $firstPart = mb_substr($content, 0, (int)($contentLength * 0.1));
-        $checks['focus_in_first_paragraph'] = [
-            'label' => 'Odak kelime içeriğin ilk %10\'unda',
-            'status' => $this->containsKeyword($firstPart, $focusKeyword),
-            'weight' => 10
-        ];
+        // 4. Odak kelime içeriğin ilk %10'unda mı? (sadece Post için)
+        $content = '';
+        $contentExists = method_exists($model, 'getTranslation') && isset($model->content);
 
-        // 5. Odak kelime H2/H3 başlıklarında kullanılmış mı?
-        $checks['focus_in_headings'] = [
-            'label' => 'Odak kelime alt başlıklarda (H2/H3)',
-            'status' => $this->checkInHeadings($post->getTranslation('content', $locale), $focusKeyword),
-            'weight' => 10
-        ];
+        if ($contentExists) {
+            $content = strip_tags($model->getTranslation('content', $locale));
+            $contentLength = mb_strlen($content);
+            $firstPart = mb_substr($content, 0, (int)($contentLength * 0.1));
+            $checks['focus_in_first_paragraph'] = [
+                'label' => 'Odak kelime içeriğin ilk %10\'unda',
+                'status' => $this->containsKeyword($firstPart, $focusKeyword),
+                'weight' => 10
+            ];
 
-        // 6. İçerik Uzunluğu
-        $wordCount = str_word_count($content);
-        $checks['content_length'] = [
-            'label' => "İçerik uzunluğu ({$wordCount} kelime)",
-            'status' => $wordCount >= 300,
-            'weight' => 10,
-            'info' => $wordCount < 300 ? 'En az 300 kelime önerilir' : 'İdeal uzunluk'
-        ];
+            // 5. Odak kelime H2/H3 başlıklarında kullanılmış mı?
+            $checks['focus_in_headings'] = [
+                'label' => 'Odak kelime alt başlıklarda (H2/H3)',
+                'status' => $this->checkInHeadings($model->getTranslation('content', $locale), $focusKeyword),
+                'weight' => 10
+            ];
+
+            // 6. İçerik Uzunluğu
+            $wordCount = str_word_count($content);
+            $checks['content_length'] = [
+                'label' => "İçerik uzunluğu ({$wordCount} kelime)",
+                'status' => $wordCount >= 300,
+                'weight' => 10,
+                'info' => $wordCount < 300 ? 'En az 300 kelime önerilir' : 'İdeal uzunluk'
+            ];
+        }
 
         // 7. SEO Başlık Uzunluğu (Piksel bazlı kontrol - yaklaşık)
         $titleLength = mb_strlen($seoTitle);
@@ -97,30 +103,34 @@ class SeoAnalysisService
             'info' => $this->getDescriptionLengthFeedback($descLength)
         ];
 
-        // 9. Görsellerde Alt Text var mı?
-        $checks['has_alt_text'] = [
-            'label' => 'Öne çıkan görselde Alt metni',
-            'status' => !empty($post->getTranslation('featured_image_alt_text', $locale)),
-            'weight' => 5
-        ];
+        // 9. Görsellerde Alt Text var mı? (sadece Post için)
+        if (isset($model->featured_image_alt_text)) {
+            $checks['has_alt_text'] = [
+                'label' => 'Öne çıkan görselde Alt metni',
+                'status' => !empty($model->getTranslation('featured_image_alt_text', $locale)),
+                'weight' => 5
+            ];
+        }
 
-        // 10. İçeride link var mı?
-        $hasInternalLinks = $this->hasInternalLinks($post->getTranslation('content', $locale));
-        $hasExternalLinks = $this->hasExternalLinks($post->getTranslation('content', $locale));
+        // 10. İçeride link var mı? (sadece content varsa)
+        if ($contentExists) {
+            $hasInternalLinks = $this->hasInternalLinks($model->getTranslation('content', $locale));
+            $hasExternalLinks = $this->hasExternalLinks($model->getTranslation('content', $locale));
 
-        $checks['internal_links'] = [
-            'label' => 'İç linkler',
-            'status' => $hasInternalLinks,
-            'weight' => 5,
-            'info' => $hasInternalLinks ? 'Var' : 'Yok - İçeride başka sayfalarınıza link verin'
-        ];
+            $checks['internal_links'] = [
+                'label' => 'İç linkler',
+                'status' => $hasInternalLinks,
+                'weight' => 5,
+                'info' => $hasInternalLinks ? 'Var' : 'Yok - İçeride başka sayfalarınıza link verin'
+            ];
 
-        $checks['external_links'] = [
-            'label' => 'Dış linkler',
-            'status' => $hasExternalLinks,
-            'weight' => 5,
-            'info' => $hasExternalLinks ? 'Var' : 'Yok - Güvenilir kaynaklara link verin'
-        ];
+            $checks['external_links'] = [
+                'label' => 'Dış linkler',
+                'status' => $hasExternalLinks,
+                'weight' => 5,
+                'info' => $hasExternalLinks ? 'Var' : 'Yok - Güvenilir kaynaklara link verin'
+            ];
+        }
 
         // Skor hesaplama
         foreach ($checks as $check) {
@@ -253,11 +263,20 @@ class SeoAnalysisService
     /**
      * Google SERP Önizlemesi için veri hazırlar
      */
-    public function generateSerpPreview(Post $post, string $locale = 'tr'): array
+    public function generateSerpPreview($model, string $locale = 'tr'): array
     {
-        $title = $post->getTranslation('seo_title', $locale) ?: $post->getTranslation('title', $locale);
-        $description = $post->getTranslation('meta_description', $locale) ?: $post->getTranslation('excerpt', $locale);
-        $url = route('blog.show', $post->slug);
+        $title = $model->getTranslation('seo_title', $locale) ?: $model->getTranslation('title', $locale);
+
+        // Description - Post için excerpt, Page için meta_description
+        $description = $model->getTranslation('meta_description', $locale);
+        if (empty($description) && isset($model->excerpt)) {
+            $description = $model->getTranslation('excerpt', $locale);
+        }
+
+        // URL - Model tipine göre
+        $url = $model instanceof Post
+            ? route('blog.show', $model->slug)
+            : route('frontend.page.show', $model->slug);
 
         // Başlık uzunluğu (piksel bazlı yaklaşık)
         $titlePixels = $this->estimatePixelWidth($title);

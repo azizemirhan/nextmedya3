@@ -78,6 +78,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'recaptcha.log' => \App\Http\Middleware\LogRecaptchaScore::class,
         'post.redirect' => \App\Http\Middleware\HandlePostRedirects::class,
+        'page.redirect' => \App\Http\Middleware\HandlePageRedirects::class,
 
     ];
 }

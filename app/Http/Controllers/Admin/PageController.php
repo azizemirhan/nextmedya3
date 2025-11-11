@@ -229,7 +229,7 @@ class PageController extends Controller
 
     public function update(Request $request, Page $page)
     {
-        // 1. ADIM: Sayfa ve SEO ayarlarını doğrula (Bu kısım aynı kalıyor)
+        // 1. ADIM: Sayfa ve SEO ayarlarını doğrula
         $validatedPageData = $request->validate([
             'title' => 'required|array',
             'title.*' => 'required|string|max:255',
@@ -237,20 +237,69 @@ class PageController extends Controller
             'status' => 'required|in:draft,published',
             'banner_title' => 'nullable|array',
             'banner_subtitle' => 'nullable|array',
+
+            // Basic SEO
             'seo_title' => 'nullable|array',
             'meta_description' => 'nullable|array',
             'keywords' => 'nullable|array',
+            'focus_keyword' => 'nullable|array',
             'index_status' => 'required|in:index,noindex',
             'follow_status' => 'required|in:follow,nofollow',
             'canonical_url' => 'nullable|url',
+
+            // Open Graph
             'og_title' => 'nullable|array',
             'og_description' => 'nullable|array',
-            'og_image' => 'nullable|url',
+            'og_image' => 'nullable|image|max:2048',
+
+            // Twitter Card
+            'twitter_card_type' => 'nullable|in:summary,summary_large_image',
+            'twitter_title' => 'nullable|array',
+            'twitter_description' => 'nullable|array',
+            'twitter_image' => 'nullable|image|max:2048',
+
+            // Meta Robots
+            'meta_noindex' => 'nullable|boolean',
+            'meta_nofollow' => 'nullable|boolean',
+            'meta_noarchive' => 'nullable|boolean',
+            'meta_nosnippet' => 'nullable|boolean',
+            'meta_max_snippet' => 'nullable|integer',
+            'meta_max_image_preview' => 'nullable|in:none,standard,large',
+
+            // Schema
+            'schema_article_type' => 'nullable|in:Article,WebPage,Product,Service,FAQPage,LocalBusiness',
+            'schema_faq_items' => 'nullable|json',
+            'schema_product_price' => 'nullable|numeric',
+            'schema_product_currency' => 'nullable|string|size:3',
+            'schema_product_availability' => 'nullable|in:InStock,OutOfStock,PreOrder,Discontinued',
+            'schema_product_rating' => 'nullable|numeric|min:1|max:5',
+            'schema_product_review_count' => 'nullable|integer',
+            'schema_service_area' => 'nullable|array',
+            'schema_service_provider' => 'nullable|array',
+
+            // Redirect
+            'redirect_url' => 'nullable|url',
+            'redirect_enabled' => 'nullable|boolean',
+            'redirect_type' => 'nullable|integer|in:301,302,307,308',
+
             'sections.*.files.*' => 'nullable|mimes:jpeg,png,jpg,gif,svg,webp,mp4|max:100048',
             'sections.*.content.*.files.*' => 'nullable|mimes:jpeg,png,jpg,gif,svg,webp,mp4|max:100048',
             'sections.*.content.*.*.files.*' => 'nullable|mimes:jpeg,png,jpg,gif,svg,webp,mp4|max:100048',
             'sections.*.content.*.*.*.files.*' => 'nullable|mimes:jpeg,png,jpg,gif,svg,webp,mp4|max:100048',
         ]);
+
+        // Handle image uploads for OG and Twitter
+        if ($request->hasFile('og_image')) {
+            $validatedPageData['og_image'] = $this->uploadImage($request, 'og_image', 'uploads/seo');
+        }
+        if ($request->hasFile('twitter_image')) {
+            $validatedPageData['twitter_image'] = $this->uploadImage($request, 'twitter_image', 'uploads/seo');
+        }
+
+        // Generate Schema
+        $schemaService = app(\App\Services\SchemaGeneratorService::class);
+        $generatedSchema = $schemaService->generate($page, app()->getLocale());
+        $validatedPageData['generated_schema_json'] = $generatedSchema;
 
         // 2. ADIM: Sayfanın temel bilgilerini güncelle
         $page->update($validatedPageData);
